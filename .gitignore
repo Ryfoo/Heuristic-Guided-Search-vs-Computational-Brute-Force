@@ -1,5 +1,41 @@
-build/
-venv/
+# Python cache
 __pycache__/
 *.pyc
-data/results/*
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# Python build
+build/
+dist/
+*.egg-info/
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Testing
+.pytest_cache/
+.coverage
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Experiment outputs
+results/
+*.csv
+
+# Temporary files
+tmp/
+temp/

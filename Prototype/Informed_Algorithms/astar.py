@@ -82,7 +82,7 @@ class ASTAR:
         return (dx + dy) * min_cost
 
     def _f_value(self,g_value : int, cell : tuple[int, int]) -> int:
-        return  g_value + self._manhatten_distance(cell)
+        return  g_value + self._manhattan_distance(cell)
 
     def _expand_cell(self, cell : tuple[int, int]) -> list[tuple[int, int]]:
         return self.env.neighbors(*cell)

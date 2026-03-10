@@ -2,34 +2,18 @@ import random
 from collections import Counter
 from collections import deque
 import sys
-from dataclasses import dataclass
+from ..config import Cell2D, Dimensions2D, Test
 
-
-@dataclass
-class Dimensions:
-    """
-    Dimensions
-    """
-
-    width: int = 20
-    height: int = 20
-    start: tuple[int, int] = (0, 0)
-    goal: tuple[int, int] = (19, 19)
-    dx: int = 1
-    dy: int = 1
-    density: float = 0.35
-
-
-class Environment:
+class Environment2D:
     def __init__(
         self,
-        width=Dimensions.width,
-        height=Dimensions.height,
-        start=Dimensions.start,
-        goal=Dimensions.goal,
-        dx=Dimensions.dx,
-        dy=Dimensions.dy,
-        density=Dimensions.density,
+        width=Dimensions2D.width,
+        height=Dimensions2D.height,
+        start=Dimensions2D.start,
+        goal=Dimensions2D.goal,
+        dx=Dimensions2D.dx,
+        dy=Dimensions2D.dy,
+        density=Dimensions2D.density,
         terrain_weight_bool=False,
         debug=False
     ):
@@ -115,7 +99,11 @@ class Environment:
                     return True
 
         return False
-    
+    def terrain_cost(self, x, y):
+        """
+        Returns the weight at each cell (x, y)
+        """
+        return self.grid[x][y]
     def goal_test(self, x, y):
         return (x, y) == self.goal
 
@@ -170,7 +158,6 @@ class Environment:
             print(Counter(flat))
 
 
-env = Environment(1000, 1000, terrain_weight_bool=True, debug=True)
 
 
 

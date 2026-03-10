@@ -1,23 +1,10 @@
 # metrics.py
-
-from dataclasses import dataclass
 import csv
 import os
 from pathlib import Path
+from ..config import Metrics
 
 
-@dataclass
-class Metrics:
-    algorithm: str
-    maze_width: int
-    maze_height: int
-    density: float
-    runtime: float
-    cells_explored: int
-    path_length: int
-    cost : int
-    max_memory_used : int
-    seed : int
 
 BASE_DIR = Path(__file__).parent.parent.parent
 
@@ -37,8 +24,7 @@ class MetricsLogger:
                 writer = csv.writer(f)
                 writer.writerow([
                     "algorithm",
-                    "maze_width",
-                    "maze_height",
+                    "maze_size",
                     "density",
                     "runtime",
                     "cells_explored",
@@ -55,8 +41,7 @@ class MetricsLogger:
 
             writer.writerow([
                 metrics.algorithm,
-                metrics.maze_width,
-                metrics.maze_height,
+                metrics.maze_size,
                 metrics.density,
                 metrics.runtime,
                 metrics.cells_explored,

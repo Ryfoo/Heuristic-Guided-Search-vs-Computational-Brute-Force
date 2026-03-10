@@ -37,7 +37,7 @@ Thumbs.db
 
 # Experiment outputs
 Data/benchmark_results/*.csv
-Data/*json
+Data/*.json
 
 # Temporary files
 tmp/

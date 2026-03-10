@@ -1,0 +1,1 @@
+from .maze_generation import Environment2D

@@ -1,10 +1,15 @@
 
 import heapq
-from ..Environment.maze_generation import Environment
+from typing import Union
+from ..config import Cell
+from ..Environment.maze_generation       import Environment2D
+from ..Environment3D.maze_generation_3d  import Environment3D
 
+
+Environment = Union[Environment2D, Environment3D]
 class ASTAR:
     """
-    A* search algorithm for 2D maze
+    A* search algorithm for 2D/3D maze
     """
     name = "ASTAR"
 
@@ -14,19 +19,19 @@ class ASTAR:
 
         self.env : Environment = env
 
-        self.frontier: list[tuple[int, tuple[int, int]]] = []
+        self.frontier: list[tuple[int, Cell]] = []
 
         heapq.heappush(self.frontier, (0, self.start))
 
-        self.visited : set[tuple[int, int]] = set()
+        self.visited : set[Cell] = set()
         
-        self.g_costs : dict[tuple[int, int], int] = {}
+        self.g_costs : dict[Cell, int] = {}
 
         self.g_costs[self.start] = 0
 
-        self.parents: dict[tuple[int, int], tuple[int, int]] = {}
+        self.parents: dict[Cell, Cell] = {}
 
-        self.path : list[tuple[int, int]] = []
+        self.path : list[Cell] = []
 
         self.cells_explored : int = 0
 
@@ -34,6 +39,7 @@ class ASTAR:
 
         self.max_memory_used : int = 0
 
+        self.debug = debug
     def solve(self) -> dict:
         """
         this the BFS solving function, it takes a maze of type Environment as a parameter
@@ -59,6 +65,12 @@ class ASTAR:
                 if neighbor not in self.g_costs or tentative_g < self.g_costs[neighbor]:
                     self.g_costs[neighbor] = tentative_g
                     self._add_to_frontier(tentative_g, neighbor)
+                    if self.debug :
+                        print(f'''
+                            at stage : {self.cells_explored}
+                            manhattan distance : {self._manhattan_distance(neighbor)}
+                            g-cost : {tentative_g}
+                        ''')
                     self._parent_map(neighbor, current)
         summary['found'] = found
         
@@ -72,41 +84,40 @@ class ASTAR:
         
         return summary
 
-    def _cost_function(self, previous : tuple[int, int], current : tuple[int, int]) -> int:
-        return self.g_costs[previous] + self.env.grid[current[0]][current[1]]
+    def _cost_function(self, previous : Cell, current : Cell) -> int:
+        return self.g_costs[previous] + self.env.terrain_cost(*current)
 
-    def _manhattan_distance(self, cell : tuple[int, int], weight : int = 1) -> int:
-        dx = abs(cell[0] - self.goal[0])
-        dy = abs(cell[1] - self.goal[1])
-        return (dx + dy) * weight
+    def _manhattan_distance(self, cell : Cell, weight : int = 1) -> int:
+        return sum(abs(a - b) for a, b in zip(cell, self.goal)) * weight
 
-    def _f_value(self,g_value : int, cell : tuple[int, int]) -> int:
+
+    def _f_value(self,g_value : int, cell : Cell) -> int:
         return  g_value + self._manhattan_distance(cell)
 
-    def _expand_cell(self, cell : tuple[int, int]) -> list[tuple[int, int]]:
+    def _expand_cell(self, cell : Cell) -> list[Cell]:
         return self.env.neighbors(*cell)
 
-    def _is_goal(self, cell : tuple[int, int]):
+    def _is_goal(self, cell : Cell):
         return cell == self.goal
 
-    def _add_to_frontier(self, g_value : int, cell : tuple[int, int]) -> None:
+    def _add_to_frontier(self, g_value : int, cell : Cell) -> None:
         heapq.heappush(self.frontier, (self._f_value(g_value, cell), cell))
     
-    def _pop_frontier(self) -> tuple[int, tuple[int, int]]:
+    def _pop_frontier(self) -> tuple[int, Cell]:
         return heapq.heappop(self.frontier)
     def _frontier_empty(self) -> bool:
         
         return not self.frontier
 
 
-    def _mark_visited(self, cell : tuple[int, int]) -> None:
+    def _mark_visited(self, cell : Cell) -> None:
         self.visited.add(cell)
 
-    def _is_visited(self, cell : tuple[int, int]) -> bool:
+    def _is_visited(self, cell : Cell) -> bool:
         return cell in self.visited
 
 
-    def _parent_map(self, child : tuple[int, int], parent : tuple[int, int]) -> None:
+    def _parent_map(self, child : Cell, parent : Cell) -> None:
         self.parents[child] = parent
 
     def _reconstruct_path(self) -> None:
@@ -116,5 +127,7 @@ class ASTAR:
             current = self.parents[current]
         self.path.append(self.start)
         self.path.reverse()
-        self.cost = sum(self.env.grid[x][y] for x,y in self.path)
+        self.cost = sum(
+                            self.env.terrain_cost(*cell) for cell in self.path
+                        )
 

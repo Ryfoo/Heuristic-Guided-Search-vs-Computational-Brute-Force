@@ -1,4 +1,5 @@
 import random
+from collections import Counter
 from collections import deque
 import sys
 from dataclasses import dataclass
@@ -50,11 +51,11 @@ class Environment:
         self.terrain_weight_bool = terrain_weight_bool
         if self.terrain_weight_bool:
             self.terrain_weights = {
-                max(int(self.width/100), 1): 0.50,  # grass
-                max(int(self.width/50), 2): 0.20,   # sand
-                max(int(self.width/20), 3): 0.15,   # water
-                max(int(self.width/10), 4): 0.10,   # mud
-                max(int(self.width/5), 5): 0.05     # rocks
+                1: 0.50,  # grass
+                2: 0.20,   # sand
+                4: 0.15,   # water
+                8: 0.10,   # mud
+                10: 0.05     # rocks
             }
         self.debug = debug
 
@@ -165,8 +166,12 @@ class Environment:
         self.grid[self.goal[0]][self.goal[1]] = 1
         if self.debug:
             self.display()
+            flat = [cell for row in self.grid for cell in row if cell > 0]
+            print(Counter(flat))
 
 
-env = Environment(terrain_weight_bool=True, debug=True)
+env = Environment(1000, 1000, terrain_weight_bool=True, debug=True)
+
+
 
 

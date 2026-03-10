@@ -75,11 +75,10 @@ class ASTAR:
     def _cost_function(self, previous : tuple[int, int], current : tuple[int, int]) -> int:
         return self.g_costs[previous] + self.env.grid[current[0]][current[1]]
 
-    def _manhattan_distance(self, cell : tuple[int, int]) -> int:
+    def _manhattan_distance(self, cell : tuple[int, int], weight : int = 1) -> int:
         dx = abs(cell[0] - self.goal[0])
         dy = abs(cell[1] - self.goal[1])
-        min_cost = min(self.env.terrain_weights.keys())
-        return (dx + dy) * min_cost
+        return (dx + dy) * weight
 
     def _f_value(self,g_value : int, cell : tuple[int, int]) -> int:
         return  g_value + self._manhattan_distance(cell)

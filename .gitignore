@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.mypy_cache
+
 
 # Virtual environments
 venv/
@@ -34,9 +36,14 @@ Thumbs.db
 .idea/
 
 # Experiment outputs
-Data/benchmark_results/
-
+Data/benchmark_results/*.csv
+Data/*json
 
 # Temporary files
 tmp/
 temp/
+*tempCodeRunner*
+
+# JSON and frequently generated files
+
+visualization/public/Data/track.json

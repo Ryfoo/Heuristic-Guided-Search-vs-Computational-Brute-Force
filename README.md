@@ -1,3 +1,5 @@
+![Alt text](./assets/REPO_Banner.png)
+
 # Maze Search Benchmark
 
 An experimental project comparing uninformed and informed search algorithms on procedurally generated mazes. The central question is whether massive parallelism and raw computational power can rival or surpass heuristic-guided intelligence — and under what conditions that holds.

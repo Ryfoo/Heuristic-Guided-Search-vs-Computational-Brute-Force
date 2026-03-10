@@ -33,7 +33,7 @@ Thumbs.db
 .idea/
 
 # Experiment outputs
-Data/benchmark_results/*.csv
+Data/benchmark_results/
 
 
 # Temporary files

@@ -3,7 +3,7 @@
 #include "maze.hpp"
 #include "search_result.hpp"
 
-class BFS {
+class Dijkstra {
 public:
     static const std::string NAME;
 

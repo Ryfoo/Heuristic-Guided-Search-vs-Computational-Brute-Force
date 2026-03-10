@@ -29,6 +29,7 @@ dist/
 Thumbs.db
 
 # IDEs
+.vscode
 .vscode/
 .idea/
 

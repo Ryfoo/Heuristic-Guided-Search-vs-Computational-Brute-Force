@@ -126,7 +126,20 @@ maze-search-benchmark/
 ```
 
 ---
+## Visualization
+### Interface
 
+![Alt text](./assets/hero.png)
+
+### 3D Modeling 
+
+![Alt text](./assets/3d.png)
+
+### Analytical Dashboard
+
+![Alt text](./assets//dashboard.png)
+
+---
 ## Setup
 
 <!-- Fill this in later -->

@@ -7,7 +7,7 @@ from ..Environment3D.maze_generation_3d  import Environment3D
 
 
 Environment = Union[Environment2D, Environment3D]
-class s:
+class Dijkstra:
     """
     Dijkstra search algorithm for 2D/3D maze
     """

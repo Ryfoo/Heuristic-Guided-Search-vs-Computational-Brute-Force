@@ -1,0 +1,10 @@
+# ── GitHub language detection ──────────────────────────────────────────────
+
+visualization/index.html linguist-language=JavaScript
+
+visualization/public/data/*.json linguist-generated=true
+
+visualization/node_modules/ linguist-vendored=true
+visualization/dist/         linguist-generated=true
+
+Prototype/**/*.py linguist-detectable=true

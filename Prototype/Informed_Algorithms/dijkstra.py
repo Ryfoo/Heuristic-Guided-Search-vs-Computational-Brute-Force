@@ -38,6 +38,8 @@ class Dijkstra:
         self.cost : int = 0
 
         self.max_memory_used : int = 0
+        
+        self.visited_order : list[Cell] = []
 
         self.debug = debug
     def solve(self) -> dict:
@@ -80,6 +82,7 @@ class Dijkstra:
             summary['path'] = self.path
             summary['cost'] = self.cost
             summary['max_memory_used'] = self.max_memory_used
+            summary['visited_order'] = self.visited_order
         
         return summary
 
@@ -104,6 +107,7 @@ class Dijkstra:
 
     def _mark_visited(self, cell : Cell) -> None:
         self.visited.add(cell)
+        self.visited_order.append(cell)
 
     def _is_visited(self, cell : Cell) -> bool:
         return cell in self.visited

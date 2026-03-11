@@ -1,12 +1,1001 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Maze Search Benchmark — 3D Visualizer</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Maze Search — 3D Pathfinding Visualizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root {
+  --bg:       #01010d;
+  --surface:  #07071a;
+  --border:   #0e0e2e;
+  --dim:      #1a1a3f;
+  --muted:    #5959eb;
+  --text:     #ffffff;
+  --bright:   #ffffff;
+  --bfs:      #00e5ff;
+  --dfs:      #ff6b35;
+  --astar:    #a855f7;
+  --dijkstra: #22d3ee;
+  --greedy:   #4ade80;
+  --start:    #00ffcc;
+  --goal:     #ff2266;
+  --path:     #ffffff;
+  --visited:  #1a0a3a;
+  --frontier: #7c3aed;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Share Tech Mono',monospace;
+  overflow-x:hidden;
+}
+
+/* ── HEADER ── */
+header{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 40px;height:64px;
+  background:rgba(1,1,13,0.85);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(12px);
+}
+.logo{
+  font-family:'Syne',sans-serif;font-weight:800;font-size:18px;
+  color:var(--bright);letter-spacing:2px;
+}
+.logo span{color:var(--bfs)}
+nav{display:flex;gap:32px}
+nav a{
+  color:var(--muted);font-size:11px;letter-spacing:3px;
+  text-decoration:none;text-transform:uppercase;
+  transition:color .2s;
+}
+nav a:hover{color:var(--text)}
+.header-badge{
+  font-size:10px;letter-spacing:2px;color:var(--muted);
+  border:1px solid var(--border);padding:4px 12px;border-radius:2px;
+}
+
+/* ── HERO ── */
+#hero{
+  min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding-top:64px;
+  position:relative;overflow:hidden;
+}
+.hero-bg{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 50%,rgba(0,229,255,.04) 0%,transparent 70%),
+    radial-gradient(ellipse 40% 60% at 80% 30%,rgba(168,85,247,.05) 0%,transparent 70%),
+    radial-gradient(ellipse 30% 40% at 60% 80%,rgba(255,34,102,.04) 0%,transparent 70%);
+  pointer-events:none;
+}
+.hero-tag{
+  font-size:10px;letter-spacing:4px;color:var(--muted);text-transform:uppercase;
+  border:1px solid var(--border);padding:5px 16px;margin-bottom:28px;
+}
+h1{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:clamp(36px,6vw,80px);
+  line-height:1.0;text-align:center;
+  color:var(--bright);letter-spacing:-1px;
+  margin-bottom:8px;
+}
+h1 em{
+  font-style:normal;
+  background:linear-gradient(135deg,var(--bfs),var(--astar));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.hero-sub{
+  font-size:13px;letter-spacing:2px;color:var(--muted);
+  text-align:center;margin-bottom:48px;max-width:520px;line-height:1.8;
+}
+.hero-stats{
+  display:flex;gap:48px;margin-bottom:56px;
+}
+.hero-stat{display:flex;flex-direction:column;align-items:center;gap:4px}
+.hero-stat-n{
+  font-family:'Syne',sans-serif;font-weight:700;font-size:28px;
+  color:var(--bright);
+}
+.hero-stat-l{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase}
+
+/* ── VIEWER SECTION ── */
+#viewer{
+  padding:0 0 80px;
+  display:flex;flex-direction:column;align-items:center;
+}
+.section-label{
+  font-size:9px;letter-spacing:5px;color:var(--muted);
+  text-transform:uppercase;margin-bottom:12px;
+  display:flex;align-items:center;gap:12px;
+}
+.section-label::before,.section-label::after{
+  content:'';flex:1;max-width:60px;height:1px;background:var(--border);
+}
+.viewer-shell{
+  width:min(1100px,96vw);
+  border:1px solid var(--border);
+  border-radius:4px;
+  overflow:hidden;
+  background:var(--surface);
+}
+
+/* top bar */
+.viewer-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 20px;
+  border-bottom:1px solid var(--border);
+  background:rgba(7,7,26,.8);
+}
+.viewer-bar-left{display:flex;align-items:center;gap:12px}
+.bar-dot{width:8px;height:8px;border-radius:50%}
+.bar-title{font-size:10px;letter-spacing:3px;color:var(--muted)}
+.bar-algo{font-size:11px;letter-spacing:2px;color:var(--bright);font-weight:bold}
+
+/* canvas */
+#canvas-wrap{position:relative;width:100%;height:560px;background:var(--bg)}
+canvas{display:block;width:100%!important;height:100%!important}
+
+/* overlay */
+#overlay{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  pointer-events:none;
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:16px;
+}
+.overlay-top{display:flex;justify-content:space-between;align-items:flex-start}
+.overlay-bottom{display:flex;justify-content:space-between;align-items:flex-end}
+
+.coord-display{
+  font-size:9px;letter-spacing:2px;color:var(--dim);
+  line-height:1.6;
+}
+.live-counter{
+  font-family:'Syne',sans-serif;font-size:32px;font-weight:800;
+  color:rgba(255,255,255,.06);letter-spacing:-1px;line-height:1;
+}
+
+/* legend */
+.legend{
+  display:flex;flex-direction:column;gap:5px;
+  pointer-events:none;
+}
+.legend-item{display:flex;align-items:center;gap:7px}
+.legend-dot{width:7px;height:7px;border-radius:50%}
+.legend-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase}
+
+/* progress */
+.progress-wrap{
+  display:flex;align-items:center;gap:10px;flex:1;max-width:260px;
+}
+.progress-track{
+  flex:1;height:2px;background:var(--border);border-radius:1px;overflow:hidden;
+}
+.progress-fill{
+  height:100%;border-radius:1px;
+  transition:width .06s linear;
+}
+.progress-pct{font-size:9px;letter-spacing:1px;color:var(--muted);min-width:30px}
+
+/* ── CONTROLS ── */
+.controls-row{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 20px;
+  border-top:1px solid var(--border);
+  background:rgba(7,7,26,.6);
+  flex-wrap:wrap;
+}
+
+/* algo pills */
+.algo-pills{display:flex;gap:6px;flex-wrap:wrap}
+.algo-pill{
+  padding:5px 14px;
+  border:1px solid var(--border);border-radius:2px;
+  background:transparent;color:var(--muted);
+  font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;
+  cursor:pointer;transition:all .15s;text-transform:uppercase;
+}
+.algo-pill:hover{border-color:var(--muted);color:var(--text)}
+.algo-pill.active{color:#000;font-weight:bold}
+
+/* playback */
+.playback{display:flex;gap:6px;margin-left:auto}
+.pb-btn{
+  width:34px;height:34px;border-radius:2px;
+  border:1px solid var(--border);background:transparent;
+  color:var(--muted);cursor:pointer;font-size:14px;
+  transition:all .15s;display:flex;align-items:center;justify-content:center;
+}
+.pb-btn:hover:not(:disabled){border-color:var(--text);color:var(--bright)}
+.pb-btn:disabled{opacity:.25;cursor:not-allowed}
+
+/* speed */
+.speed-wrap{display:flex;align-items:center;gap:8px;margin-left:12px}
+.speed-label{font-size:9px;letter-spacing:2px;color:var(--muted)}
+input[type=range]{
+  width:80px;accent-color:var(--muted);
+  cursor:pointer;
+}
+.speed-val{font-size:10px;color:var(--text);min-width:20px}
+
+/* maze file selector */
+.maze-selector-row{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 20px;
+  border-bottom:1px solid var(--border);
+  background:rgba(4,4,18,.9);
+}
+.maze-selector-label{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase}
+.maze-select{
+  background:var(--bg);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:2px;
+  padding:5px 10px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px;
+  letter-spacing:1px;
+  cursor:pointer;
+  outline:none;
+  flex:1;
+  max-width:320px;
+  transition:border-color .2s;
+}
+.maze-select:hover{ border-color:var(--muted); }
+.maze-select:focus{ border-color:var(--bfs); }
+.maze-select option{ background:var(--surface); }
+.maze-loading-badge{
+  font-size:9px;letter-spacing:2px;color:var(--muted);
+  border:1px solid var(--border);padding:3px 10px;border-radius:2px;
+  display:none;
+}
+.maze-loading-badge.visible{ display:block; }
+
+/* ── STATS SECTION ── */
+#stats{
+  padding:80px 40px;
+  max-width:1100px;margin:0 auto;
+}
+.stats-header{
+  display:flex;align-items:baseline;gap:16px;margin-bottom:48px;
+}
+.stats-title{
+  font-family:'Syne',sans-serif;font-weight:700;font-size:32px;color:var(--bright);
+}
+.stats-desc{font-size:11px;letter-spacing:2px;color:var(--muted);margin-left:auto}
+
+.stats-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;
+  border:1px solid var(--border);border-radius:4px;overflow:hidden;
+  margin-bottom:48px;
+}
+.stat-card{
+  background:var(--surface);padding:24px 20px;
+  display:flex;flex-direction:column;gap:6px;
+  transition:background .2s;
+}
+.stat-card:hover{background:var(--dim)}
+.stat-algo{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase}
+.stat-algo-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px}
+.stat-num{
+  font-family:'Syne',sans-serif;font-weight:700;font-size:26px;
+  color:var(--bright);letter-spacing:-1px;
+}
+.stat-key{font-size:9px;letter-spacing:2px;color:var(--muted)}
+
+/* comparison bars */
+.compare-section{margin-bottom:48px}
+.compare-title{
+  font-size:10px;letter-spacing:4px;color:var(--muted);
+  text-transform:uppercase;margin-bottom:20px;
+}
+.compare-row{
+  display:flex;align-items:center;gap:12px;margin-bottom:12px;
+}
+.compare-algo{font-size:10px;letter-spacing:2px;color:var(--muted);width:80px;text-transform:uppercase}
+.compare-bar-wrap{flex:1;height:28px;background:var(--border);border-radius:2px;overflow:hidden;position:relative}
+.compare-bar{
+  height:100%;border-radius:2px;
+  display:flex;align-items:center;padding-left:10px;
+  font-size:10px;letter-spacing:1px;color:#000;font-weight:bold;
+  transition:width 1s cubic-bezier(.4,0,.2,1);
+  min-width:2px;
+}
+
+/* findings */
+.findings-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;
+  border:1px solid var(--border);border-radius:4px;overflow:hidden;
+}
+.finding-card{
+  background:var(--surface);padding:28px 24px;
+  border-left:2px solid transparent;
+  transition:all .2s;
+}
+.finding-card:hover{background:var(--dim)}
+.finding-n{
+  font-family:'Syne',sans-serif;font-weight:800;font-size:40px;
+  color:var(--border);letter-spacing:-2px;margin-bottom:8px;
+}
+.finding-title{font-size:12px;letter-spacing:2px;color:var(--bright);margin-bottom:8px}
+.finding-body{font-size:11px;color:var(--muted);line-height:1.7}
+
+/* ── FOOTER ── */
+footer{
+  border-top:1px solid var(--border);
+  padding:24px 40px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.footer-l{font-size:10px;letter-spacing:2px;color:var(--muted)}
+.footer-r{font-size:10px;letter-spacing:2px;color:var(--border)}
+</style>
 </head>
 <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+
+<!-- ══════════════════════ HEADER ══════════════════════ -->
+<header>
+  <div class="logo">MAZE<span>SEARCH</span></div>
+  <nav>
+    <a href="#hero">Home</a>
+    <a href="#viewer">Visualizer</a>
+    <a href="#stats">Analysis</a>
+  </nav>
+  <div class="header-badge">3D PATHFINDING</div>
+</header>
+
+<!-- ══════════════════════ HERO ══════════════════════ -->
+<section id="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-tag">Research Visualization</div>
+  <h1>Can <em>Parallelism</em><br>Beat Intelligence?</h1>
+  <p class="hero-sub">
+    Comparing BFS, DFS, A*, Dijkstra &amp; Greedy search across
+    3D maze environments — measuring nodes expanded, path cost, and runtime.
+  </p>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <span class="hero-stat-n">5</span>
+      <span class="hero-stat-l">Algorithms</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-n">3D</span>
+      <span class="hero-stat-l">Environment</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-n">6</span>
+      <span class="hero-stat-l">Neighbors</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-n">∞</span>
+      <span class="hero-stat-l">Scale</span>
+    </div>
+  </div>
+  <a href="#viewer" style="
+    padding:12px 36px;border:1px solid var(--bfs);color:var(--bfs);
+    font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:3px;
+    text-decoration:none;text-transform:uppercase;
+    transition:all .2s;border-radius:2px;
+    "
+    onmouseover="this.style.background='var(--bfs)';this.style.color='#000'"
+    onmouseout="this.style.background='transparent';this.style.color='var(--bfs)'"
+  >Launch Visualizer →</a>
+</section>
+
+<!-- ══════════════════════ VIEWER ══════════════════════ -->
+<section id="viewer" style="padding:80px 20px 60px">
+  <div class="section-label">3D Maze Renderer</div>
+  <div class="viewer-shell">
+
+    <!-- maze file selector -->
+    <div class="maze-selector-row">
+      <span class="maze-selector-label">MAZE FILE</span>
+      <select class="maze-select" id="maze-select">
+        <!-- populated by JS -->
+      </select>
+      <span class="maze-loading-badge" id="maze-loading-badge">LOADING...</span>
+      <span style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-left:auto" id="maze-size-badge"></span>
+    </div>
+
+    <!-- top bar -->
+    <div class="viewer-bar">
+      <div class="viewer-bar-left">
+        <div class="bar-dot" id="bar-dot" style="background:var(--bfs);box-shadow:0 0 6px var(--bfs)"></div>
+        <span class="bar-title">ACTIVE ALGORITHM</span>
+        <span class="bar-algo" id="bar-algo-name">BFS</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:24px">
+        <div class="progress-wrap">
+          <div class="progress-track">
+            <div class="progress-fill" id="prog-fill" style="width:0%;background:var(--bfs)"></div>
+          </div>
+          <span class="progress-pct" id="prog-pct">0%</span>
+        </div>
+        <span style="font-size:9px;letter-spacing:2px;color:var(--muted)" id="status-text">READY</span>
+      </div>
+    </div>
+
+    <!-- canvas -->
+    <div id="canvas-wrap">
+      <canvas id="three-canvas"></canvas>
+      <div id="overlay">
+        <div class="overlay-top">
+          <div class="coord-display" id="maze-info">MAZE 12×12×12<br>CELLS: 1728<br>WALLS: —</div>
+          <div class="live-counter" id="live-counter">0</div>
+        </div>
+        <div class="overlay-bottom">
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--start);box-shadow:0 0 5px var(--start)"></div><span class="legend-label">Start</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--goal);box-shadow:0 0 5px var(--goal)"></div><span class="legend-label">Goal</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--visited)"></div><span class="legend-label">Explored</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--frontier);box-shadow:0 0 5px var(--frontier)"></div><span class="legend-label">Frontier</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--path);box-shadow:0 0 8px var(--path)"></div><span class="legend-label">Path beam</span></div>
+          </div>
+          <div id="live-stats" style="text-align:right;font-size:9px;letter-spacing:2px;color:var(--muted);line-height:1.8">
+            NODES — <br>PATH  — <br>COST  —
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- controls -->
+    <div class="controls-row">
+      <div class="algo-pills" id="algo-pills"></div>
+      <div class="playback">
+        <button class="pb-btn" id="btn-play"  title="Play">▶</button>
+        <button class="pb-btn" id="btn-pause" title="Pause" disabled>⏸</button>
+        <button class="pb-btn" id="btn-reset" title="Reset">↺</button>
+      </div>
+      <div class="speed-wrap">
+        <span class="speed-label">SPD</span>
+        <input type="range" id="speed-range" min="1" max="80" value="10"/>
+        <span class="speed-val" id="speed-val">10×</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════ STATS ══════════════════════ -->
+<section id="stats">
+  <div class="stats-header">
+    <h2 class="stats-title">Analysis</h2>
+    <span class="stats-desc">BENCHMARK RESULTS — 3D Maze</span>
+  </div>
+
+  <!-- stat cards -->
+  <div class="stats-grid" id="stat-cards"></div>
+
+  <!-- comparison bars — nodes -->
+  <div class="compare-section">
+    <div class="compare-title">Nodes Expanded</div>
+    <div id="bars-nodes"></div>
+  </div>
+
+  <!-- comparison bars — runtime -->
+  <div class="compare-section">
+    <div class="compare-title">Runtime (ms)</div>
+    <div id="bars-runtime"></div>
+  </div>
+
+  <!-- findings -->
+  <div class="compare-title" style="margin-bottom:20px">Key Findings</div>
+  <div class="findings-grid">
+    <div class="finding-card" style="border-left-color:var(--bfs)">
+      <div class="finding-n">01</div>
+      <div class="finding-title">BFS GUARANTEES OPTIMALITY</div>
+      <div class="finding-body">BFS always finds the shortest path in an unweighted graph. In 3D with branching factor 6, it expands the full frontier before going deeper.</div>
+    </div>
+    <div class="finding-card" style="border-left-color:var(--greedy)">
+      <div class="finding-n">02</div>
+      <div class="finding-title">GREEDY IS FASTEST, NOT OPTIMAL</div>
+      <div class="finding-body">Greedy best-first expands the fewest nodes by always following the heuristic, but sacrifices path quality — cost can be significantly higher.</div>
+    </div>
+    <div class="finding-card" style="border-left-color:var(--astar)">
+      <div class="finding-n">03</div>
+      <div class="finding-title">A* DEGRADES IN DENSE SPACE</div>
+      <div class="finding-body">In highly connected 3D mazes, Manhattan distance provides weak discrimination. A* approaches Dijkstra behavior with priority queue overhead.</div>
+    </div>
+    <div class="finding-card" style="border-left-color:var(--dfs)">
+      <div class="finding-n">04</div>
+      <div class="finding-title">DFS FINDS LONG PATHS FAST</div>
+      <div class="finding-body">DFS explores deep corridors quickly but produces extremely suboptimal paths. Path length can be 100× longer than optimal in 3D mazes.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ FOOTER ══════════════════════ -->
+<footer>
+  <span class="footer-l">MAZE SEARCH BENCHMARK — 3D PATHFINDING RESEARCH</span>
+  <span class="footer-r">BFS · DFS · A* · DIJKSTRA · GREEDY</span>
+</footer>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// MOCK DATA — replace with fetch('/data/maze_3d.json') 
+// ════════════════════════════════════════════════════════════
+const MOCK = null; // set to null to use embedded, or load from JSON
+
+const ALGO_META = {
+  bfs:      { label:'BFS',      color:'#00e5ff', textColor:'#000' },
+  dfs:      { label:'DFS',      color:'#ff6b35', textColor:'#000' },
+  astar:    { label:'A*',       color:'#a855f7', textColor:'#fff' },
+  dijkstra: { label:'DIJKSTRA', color:'#22d3ee', textColor:'#000' },
+  greedy:   { label:'GREEDY',   color:'#4ade80', textColor:'#000' },
+};
+
+const TERRAIN_COLORS = {
+  1:  0x00b359,  // grass
+  2:  0xcc8800,  // sand
+  4:  0x0055cc,  // water
+  8:  0x992200,  // mud
+  10: 0x660099,  // rock
+};
+
+// ════════════════════════════════════════════════════════════
+// THREE.JS SETUP
+// ════════════════════════════════════════════════════════════
+const canvas  = document.getElementById('three-canvas');
+const wrap    = document.getElementById('canvas-wrap');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setClearColor(0x01010d);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+
+function resize() {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+
+const scene  = new THREE.Scene();
+scene.fog    = new THREE.FogExp2(0x01010d, 0.025);
+
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 600);
+camera.position.set(22, 18, 22);
+camera.lookAt(0,0,0);
+
+// lights
+scene.add(new THREE.AmbientLight(0x0a0a22, 4));
+const sun = new THREE.DirectionalLight(0x8899ff, 1.5);
+sun.position.set(30, 50, 20);
+scene.add(sun);
+const n1 = new THREE.PointLight(0x3300aa, 5, 80);
+n1.position.set(-20,15,-15);
+scene.add(n1);
+const n2 = new THREE.PointLight(0x004466, 4, 60);
+n2.position.set(20,-5,20);
+scene.add(n2);
+
+// star field
+(function(){
+  const n=2000, pos=new Float32Array(n*3);
+  for(let i=0;i<n;i++){
+    pos[i*3]  =(Math.random()-.5)*500;
+    pos[i*3+1]=(Math.random()-.5)*500;
+    pos[i*3+2]=(Math.random()-.5)*500;
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:0xffffff,size:.3,transparent:true,opacity:.6,sizeAttenuation:true})));
+})();
+
+// orbit controls (manual — no import needed)
+let isDragging=false, prevX=0, prevY=0, rotX=0.4, rotY=0.6, dist=32;
+canvas.addEventListener('mousedown', e=>{isDragging=true;prevX=e.clientX;prevY=e.clientY});
+window.addEventListener('mouseup',   ()=>isDragging=false);
+window.addEventListener('mousemove', e=>{
+  if(!isDragging)return;
+  rotY+=(e.clientX-prevX)*0.008;
+  rotX+=(e.clientY-prevY)*0.008;
+  rotX=Math.max(-.5,Math.min(1.4,rotX));
+  prevX=e.clientX;prevY=e.clientY;
+});
+canvas.addEventListener('wheel', e=>{
+  dist=Math.max(8,Math.min(80,dist+e.deltaY*.04));
+  e.preventDefault();
+},{passive:false});
+let autoRotate=true;
+canvas.addEventListener('mousedown',()=>autoRotate=false);
+
+function updateCamera(){
+  if(autoRotate) rotY+=0.003;
+  camera.position.x=dist*Math.sin(rotY)*Math.cos(rotX);
+  camera.position.y=dist*Math.sin(rotX);
+  camera.position.z=dist*Math.cos(rotY)*Math.cos(rotX);
+  camera.lookAt(0,0,0);
+}
+
+// ════════════════════════════════════════════════════════════
+// MAZE RENDERER
+// ════════════════════════════════════════════════════════════
+let mazeGroup = new THREE.Group();
+scene.add(mazeGroup);
+let cellMap   = new Map();
+
+function buildMaze(mazeData){
+  // clear old meshes and dispose materials
+  while(mazeGroup.children.length){
+    const m = mazeGroup.children[0];
+    if(m.material) m.material.dispose();
+    mazeGroup.remove(m);
+  }
+  cellMap.clear();
+
+  const {grid,width,height,depth,start,goal} = mazeData;
+  const geo = new THREE.SphereGeometry(.42, 7, 7);
+
+  for(let x=0;x<width;x++) for(let y=0;y<height;y++) for(let z=0;z<depth;z++){
+    const v=grid[x][y][z];
+    if(v===0) {
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0x111133, emissive: 0x050510, emissiveIntensity: 0.3,
+        roughness: 0.9, metalness: 0.1,
+        transparent: true, opacity: 0.4,
+      })
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), mat)
+      mesh.position.set(x - width/2, y - height/2, z - depth/2)
+      mazeGroup.add(mesh)
+      // don't add to cellMap — walls don't participate in animation
+      continue
+    };
+    const isSt=x===start[0]&&y===start[1]&&z===start[2];
+    const isGo=x===goal[0] &&y===goal[1] &&z===goal[2];
+    const hex  = isSt?0x00ffcc : isGo?0xff2266 : (TERRAIN_COLORS[v]??0x00b359);
+    const ei   = isSt||isGo ? 1.4 : 0.10;
+    const mat  = new THREE.MeshStandardMaterial({
+      color:hex, emissive:hex, emissiveIntensity:ei,
+      roughness:.35, metalness:.5, transparent:true, opacity: isSt||isGo?1:.82,
+    });
+    const mesh=new THREE.Mesh(geo,mat);
+    mesh.position.set(x-width/2, y-height/2, z-depth/2);
+
+    // start/goal: add inner glow sphere
+    if(isSt||isGo){
+      const glow=new THREE.Mesh(
+        new THREE.SphereGeometry(.55,7,7),
+        new THREE.MeshBasicMaterial({color:hex,transparent:true,opacity:.18,side:THREE.BackSide})
+      );
+      mesh.add(glow);
+    }
+    mazeGroup.add(mesh);
+    cellMap.set(`${x},${y},${z}`,mesh);
+  }
+
+  // info
+  let walls=0,free=0;
+  for(let x=0;x<width;x++) for(let y=0;y<height;y++) for(let z=0;z<depth;z++)
+    grid[x][y][z]===0?walls++:free++;
+  document.getElementById('maze-info').innerHTML=
+    `MAZE ${width}×${height}×${depth}<br>FREE: ${free.toLocaleString()}<br>WALLS: ${walls.toLocaleString()}`;
+}
+
+function highlightCell(x,y,z,hexColor,ei,scale){
+  const m=cellMap.get(`${x},${y},${z}`);
+  if(!m)return;
+  m.material.color.setHex(hexColor);
+  m.material.emissive.setHex(hexColor);
+  m.material.emissiveIntensity=ei;
+  m.scale.setScalar(scale??1);
+}
+
+// ════════════════════════════════════════════════════════════
+// ANIMATION STATE
+// ════════════════════════════════════════════════════════════
+let state={
+  playing:false, complete:false,
+  step:0, speed:10,
+  visited:[], path:[],
+  mazeData:null, algoKey:'bfs',
+};
+
+function loadAlgo(key, mazeData, algoData){
+  state.algoKey  = key;
+  state.visited  = algoData.visited_order||[];
+  state.path     = algoData.path||[];
+  state.step     = 0;
+  state.playing  = false;
+  state.complete = false;
+  state.mazeData = mazeData;
+
+  resetMazeColors(mazeData);
+  updateUI(key, algoData);
+  setProgress(0);
+  document.getElementById('status-text').textContent='READY';
+  document.getElementById('live-counter').textContent='0';
+  document.getElementById('btn-pause').disabled=true;
+  document.getElementById('btn-play').disabled=false;
+}
+
+function resetMazeColors(mazeData){
+  const {grid,start,goal}=mazeData;
+  cellMap.forEach((mesh,key)=>{
+    const [x,y,z]=key.split(',').map(Number);
+    const v=grid[x][y][z];
+    const isSt=x===start[0]&&y===start[1]&&z===start[2];
+    const isGo=x===goal[0] &&y===goal[1] &&z===goal[2];
+    const hex = isSt?0x00ffcc:isGo?0xff2266:(TERRAIN_COLORS[v]??0x00b359);
+    mesh.material.color.setHex(hex);
+    mesh.material.emissive.setHex(hex);
+    mesh.material.emissiveIntensity=isSt||isGo?1.4:0.10;
+    mesh.scale.setScalar(1);
+  });
+}
+
+function tick(){
+  if(!state.playing||state.complete)return;
+  const end=Math.min(state.step+state.speed, state.visited.length);
+  for(let i=state.step;i<end;i++){
+    const [x,y,z]=state.visited[i];
+    highlightCell(x,y,z, 0x1a0a3a, .25, .65);
+  }
+  if(end>0){
+    const [fx,fy,fz]=state.visited[end-1];
+    highlightCell(fx,fy,fz, 0x7c3aed, 1.4, 1.25);
+  }
+  state.step=end;
+  setProgress(end/state.visited.length);
+  document.getElementById('live-counter').textContent=end.toLocaleString();
+
+  if(state.step>=state.visited.length){
+    drawPath();
+    state.complete=true;
+    state.playing =false;
+    document.getElementById('status-text').textContent='COMPLETE';
+    document.getElementById('btn-pause').disabled=true;
+  }
+}
+
+function drawPath(){
+  // step-by-step path reveal with glow
+  state.path.forEach(([x,y,z],i)=>{
+    setTimeout(()=>{
+      highlightCell(x,y,z, 0xffffff, 3.0, 1.5);
+    }, i*30);
+  });
+}
+
+function setProgress(v){
+  const pct=Math.round(v*100);
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-pct').textContent=pct+'%';
+}
+
+function updateUI(key, algoData){
+  const meta=ALGO_META[key]||{label:key,color:'#fff'};
+  document.getElementById('bar-algo-name').textContent=meta.label;
+  document.getElementById('bar-dot').style.background=meta.color;
+  document.getElementById('bar-dot').style.boxShadow=`0 0 8px ${meta.color}`;
+  document.getElementById('prog-fill').style.background=meta.color;
+  document.getElementById('live-stats').innerHTML=
+    `NODES ${(algoData.nodes_expanded||0).toLocaleString()}<br>`+
+    `PATH&nbsp;&nbsp;${algoData.path_length||0}<br>`+
+    `COST&nbsp;&nbsp;${algoData.cost||0}`;
+
+  // update pill styles
+  document.querySelectorAll('.algo-pill').forEach(p=>{
+    const isActive=p.dataset.key===key;
+    const pMeta=ALGO_META[p.dataset.key]||{color:'#fff',textColor:'#000'};
+    p.style.background   = isActive?pMeta.color:'transparent';
+    p.style.color        = isActive?pMeta.textColor:'var(--muted)';
+    p.style.borderColor  = isActive?pMeta.color:'var(--border)';
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// STATS SECTION
+// ════════════════════════════════════════════════════════════
+function buildStats(mazeData){
+  const algos=mazeData.algorithms;
+
+  // stat cards
+  const cardsEl=document.getElementById('stat-cards');
+  cardsEl.innerHTML='';
+  Object.entries(algos).forEach(([key,d])=>{
+    const meta=ALGO_META[key]||{label:key,color:'#fff'};
+    cardsEl.innerHTML+=`
+      <div class="stat-card">
+        <div class="stat-algo">
+          <span class="stat-algo-dot" style="background:${meta.color};box-shadow:0 0 4px ${meta.color}"></span>
+          ${meta.label}
+        </div>
+        <div class="stat-num">${(d.nodes_expanded||0).toLocaleString()}</div>
+        <div class="stat-key">NODES EXPANDED</div>
+        <div style="margin-top:8px;font-size:20px;color:var(--bright);font-family:'Syne',sans-serif;font-weight:700">${d.path_length}</div>
+        <div class="stat-key">PATH LENGTH</div>
+        <div style="margin-top:4px;font-size:14px;color:var(--muted)">${(d.runtime*1000).toFixed(0)} ms</div>
+      </div>`;
+  });
+
+  // nodes bars
+  const maxNodes=Math.max(...Object.values(algos).map(d=>d.nodes_expanded||0));
+  const nodesEl=document.getElementById('bars-nodes');
+  nodesEl.innerHTML='';
+  Object.entries(algos).forEach(([key,d])=>{
+    const meta=ALGO_META[key]||{label:key,color:'#fff',textColor:'#000'};
+    const pct=((d.nodes_expanded||0)/maxNodes*100).toFixed(1);
+    nodesEl.innerHTML+=`
+      <div class="compare-row">
+        <span class="compare-algo">${meta.label}</span>
+        <div class="compare-bar-wrap">
+          <div class="compare-bar" style="width:${pct}%;background:${meta.color};color:${meta.textColor}">
+            ${(d.nodes_expanded||0).toLocaleString()}
+          </div>
+        </div>
+      </div>`;
+  });
+
+  // runtime bars
+  const maxRT=Math.max(...Object.values(algos).map(d=>d.runtime||0));
+  const rtEl=document.getElementById('bars-runtime');
+  rtEl.innerHTML='';
+  Object.entries(algos).forEach(([key,d])=>{
+    const meta=ALGO_META[key]||{label:key,color:'#fff',textColor:'#000'};
+    const pct=((d.runtime||0)/maxRT*100).toFixed(1);
+    rtEl.innerHTML+=`
+      <div class="compare-row">
+        <span class="compare-algo">${meta.label}</span>
+        <div class="compare-bar-wrap">
+          <div class="compare-bar" style="width:${pct}%;background:${meta.color};color:${meta.textColor}">
+            ${((d.runtime||0)*1000).toFixed(0)} ms
+          </div>
+        </div>
+      </div>`;
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// INIT & CONTROLS
+// ════════════════════════════════════════════════════════════
+function init(mazeData){
+  buildMaze(mazeData.maze);
+  buildStats(mazeData);
+
+  // build algo pills
+  const pillsEl=document.getElementById('algo-pills');
+  pillsEl.innerHTML='';
+  Object.keys(mazeData.algorithms).forEach(key=>{
+    const meta=ALGO_META[key]||{label:key,color:'#fff'};
+    const btn=document.createElement('button');
+    btn.className='algo-pill';
+    btn.dataset.key=key;
+    btn.textContent=meta.label;
+    btn.onclick=()=>{
+      state.playing=false;
+      document.getElementById('btn-pause').disabled=true;
+      document.getElementById('btn-play').disabled=false;
+      loadAlgo(key, mazeData.maze, mazeData.algorithms[key]);
+    };
+    pillsEl.appendChild(btn);
+  });
+
+  // load first algo
+  const firstKey=Object.keys(mazeData.algorithms)[0];
+  loadAlgo(firstKey, mazeData.maze, mazeData.algorithms[firstKey]);
+}
+
+document.getElementById('btn-play').onclick=()=>{
+  if(state.complete){
+    resetMazeColors(state.mazeData);
+    state.step=0;state.complete=false;
+    setProgress(0);
+    document.getElementById('live-counter').textContent='0';
+    document.getElementById('status-text').textContent='PLAYING';
+  }
+  state.playing=true;
+  document.getElementById('btn-pause').disabled=false;
+  document.getElementById('btn-play').disabled=true;
+  document.getElementById('status-text').textContent='PLAYING';
+};
+document.getElementById('btn-pause').onclick=()=>{
+  state.playing=false;
+  document.getElementById('btn-pause').disabled=true;
+  document.getElementById('btn-play').disabled=false;
+  document.getElementById('status-text').textContent='PAUSED';
+};
+document.getElementById('btn-reset').onclick=()=>{
+  state.playing=false;state.step=0;state.complete=false;
+  resetMazeColors(state.mazeData);
+  setProgress(0);
+  document.getElementById('live-counter').textContent='0';
+  document.getElementById('status-text').textContent='READY';
+  document.getElementById('btn-pause').disabled=true;
+  document.getElementById('btn-play').disabled=false;
+};
+document.getElementById('speed-range').oninput=function(){
+  state.speed=+this.value;
+  document.getElementById('speed-val').textContent=this.value+'×';
+};
+
+// ════════════════════════════════════════════════════════════
+// RENDER LOOP
+// ════════════════════════════════════════════════════════════
+function animate(){
+  requestAnimationFrame(animate);
+  updateCamera();
+  tick();
+  renderer.render(scene, camera);
+}
+
+// ════════════════════════════════════════════════════════════
+// MAZE FILE REGISTRY
+// Add or remove entries here to control the dropdown.
+// Files must live in the same folder as this HTML file.
+// ════════════════════════════════════════════════════════════
+const MAZE_FILES = [
+  { label: '3D    — 10×10×10',            file: 'public/data/10x10x10_3d.json'      },
+  { label: '3D    — 20×20×20',            file: 'public/data/20x20x20_3d.json'      },
+  { label: '3D    — 50×50×50',            file: 'public/data/50x50x50_3d.json'      },
+];
+
+// ════════════════════════════════════════════════════════════
+// POPULATE DROPDOWN
+// ════════════════════════════════════════════════════════════
+function buildDropdown(){
+  const sel = document.getElementById('maze-select');
+  sel.innerHTML = '';
+  MAZE_FILES.forEach((entry, i) => {
+    const opt = document.createElement('option');
+    opt.value = entry.file;
+    opt.textContent = entry.label;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', () => onMazeSelect(sel.value));
+}
+
+// ════════════════════════════════════════════════════════════
+// LOAD A MAZE FILE BY FILENAME
+// ════════════════════════════════════════════════════════════
+function onMazeSelect(filename){
+  // stop any running animation
+  state.playing = false;
+  document.getElementById('btn-pause').disabled = true;
+  document.getElementById('btn-play').disabled  = false;
+  document.getElementById('status-text').textContent = 'LOADING';
+
+  const badge = document.getElementById('maze-loading-badge');
+  badge.classList.add('visible');
+
+  fetch(filename)
+    .then(r => {
+      if (!r.ok) throw new Error(`File not found: ${filename}`);
+      return r.json();
+    })
+    .then(data => {
+      badge.classList.remove('visible');
+      const {width,height,depth} = data.maze;
+      document.getElementById('maze-size-badge').textContent =
+        depth ? `${width}×${height}×${depth}` : `${width}×${height}`;
+      init(data);
+    })
+    .catch(err => {
+      badge.classList.remove('visible');
+      document.getElementById('maze-size-badge').textContent = 'FILE NOT FOUND';
+      document.getElementById('status-text').textContent = 'ERROR';
+      console.warn('Maze load failed:', err.message);
+    });
+}
+
+// ════════════════════════════════════════════════════════════
+// STARTUP
+// ════════════════════════════════════════════════════════════
+resize();
+window.addEventListener('resize', resize);
+animate();
+buildDropdown();
+
+// Load the first file in the registry on startup
+onMazeSelect(MAZE_FILES[0].file);
+</script>
 </body>
 </html>

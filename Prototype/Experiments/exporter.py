@@ -1,44 +1,17 @@
 import json
 import os
+import statistics
 from pathlib import Path
 from datetime import datetime
 
 
-# ── export threshold ───────────────────────────────────────────────────────
 MAX_EXPORT_DIM = 50   # skip export if any dimension exceeds this
 
 
 class MazeExporter:
     """
-    Exports a single benchmark run to JSON for the Three.js visualizer.
-    Triggered after each full run in benchmark.py.
-
-    JSON schema:
-    {
-        "meta": {
-            "exported_at": str,
-            "seed":        int,
-            "density":     float,
-            "maze_size":   str,
-        },
-        "maze": {
-            "width":  int,
-            "height": int,
-            "depth":  int,       # 0 if 2D
-            "grid":   list,      # [x][y] or [x][y][z], 0=wall else terrain weight
-            "start":  list,      # [x, y] or [x, y, z]
-            "goal":   list,
-        },
-        "algorithms": {
-            "<name>": {
-                "path":           list[list[int]],
-                "path_length":    int,
-                "cost":           int,
-                "nodes_expanded": int,
-                "runtime":        float,
-            }
-        }
-    }
+    Collects all runs per config, picks the median runtime run,
+    writes one JSON per config: WxHxD_3d.json
     """
 
     def __init__(
@@ -46,90 +19,122 @@ class MazeExporter:
         output_dir: str = "visualization/public/data",
         max_dim:    int = MAX_EXPORT_DIM,
     ):
-        self.output_dir = Path(output_dir)
-        self.max_dim    = max_dim
+        self.output_dir  = Path(output_dir)
+        self.max_dim     = max_dim
+        self._runs: dict[str, list[dict]] = {}   # config_key → list of run dicts
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def export(
+    # ── called by benchmark after every single run ─────────────────────────
+    def collect(
         self,
         env,
-        results:  dict[str, dict],
-        seed:     int,
-        density:  float,
-    ) -> str | None:
-        """
-        Export one run to JSON.
-
-        Parameters
-        ----------
-        env     : Environment2D or Environment3D instance
-        results : { algorithm_name: result_dict from solver.solve() }
-        seed    : seed used for this run
-        density : density used for this run
-
-        Returns
-        -------
-        str  — path to written file
-        None — if maze exceeds size threshold (skipped silently)
-        """
+        results: dict[str, dict],
+        seed:    int,
+        density: float,
+    ) -> None:
         is_3d  = hasattr(env, 'depth')
         width  = env.width
         height = env.height
         depth  = getattr(env, 'depth', 0)
 
-        # ── size gate ──────────────────────────────────────────────────────
         dims = [width, height] + ([depth] if is_3d else [])
         if any(d > self.max_dim for d in dims):
-            print(f"  [exporter] skipped — maze {dims} exceeds threshold {self.max_dim}")
+            return   # silently skip — too large to visualize
+
+        config_key = self._config_key(width, height, depth)
+
+        if config_key not in self._runs:
+            self._runs[config_key] = []
+
+        self._runs[config_key].append({
+            "env":     env,
+            "results": results,
+            "seed":    seed,
+            "density": density,
+            "is_3d":   is_3d,
+            # median selector key — average runtime across all algorithms
+            "avg_runtime": statistics.mean(
+                r.get("runtime", 0) for r in results.values() if r.get("found")
+            ) if any(r.get("found") for r in results.values()) else float('inf'),
+        })
+
+    # ── called once after all runs for a config are done ──────────────────
+    def flush(self, width: int, height: int, depth: int = 0) -> str | None:
+        config_key = self._config_key(width, height, depth)
+        runs = self._runs.get(config_key)
+        if not runs:
             return None
 
-        # ── build payload ──────────────────────────────────────────────────
+        # pick median runtime run
+        sorted_runs = sorted(runs, key=lambda r: r["avg_runtime"])
+        median_idx  = len(sorted_runs) // 2
+        best        = sorted_runs[median_idx]
+
+        env     = best["env"]
+        results = best["results"]
+        is_3d   = best["is_3d"]
+
         data = {
             "meta": {
                 "exported_at": datetime.now().isoformat(),
-                "seed":        seed,
-                "density":     density,
-                "maze_size":   f"{width}x{height}" + (f"x{depth}" if is_3d else ""),
+                "seed":        best["seed"],
+                "density":     best["density"],
+                "maze_size":   config_key,
+                "total_runs":  len(runs),
+                "selection":   "median runtime",
             },
             "maze": {
-                "width":  width,
-                "height": height,
-                "depth":  depth,
+                "width":  env.width,
+                "height": env.height,
+                "depth":  getattr(env, 'depth', 0),
                 "grid":   env.grid,
                 "start":  list(env.start),
                 "goal":   list(env.goal),
             },
             "algorithms": {
-                name: self._serialize_result(result)
+                name: self._serialize(result)
                 for name, result in results.items()
                 if result.get("found", False)
-            }
+            },
         }
 
-        # ── write file ─────────────────────────────────────────────────────
-        filename = (
-            f"maze_{'3d' if is_3d else '2d'}"
-            f"_{width}x{height}" + (f"x{depth}" if is_3d else "")
-            + ".json"
-        )
-        path = self.output_dir / filename
+        filename = f"{config_key}_3d.json" if is_3d else f"{config_key}_2d.json"
+        path     = self.output_dir / filename
 
         with open(path, "w") as f:
-            json.dump(data, f, separators=(',', ':'))   # compact — no whitespace
-
-        # also write a fixed-name file for the live visualizer
-        with open(latest_path, "w") as f:
             json.dump(data, f, separators=(',', ':'))
 
         size_kb = os.path.getsize(path) / 1024
-        print(f"  [exporter] wrote {filename} ({size_kb:.1f} KB)")
+        print(f"  [exporter] {filename} ({size_kb:.1f} KB) — median of {len(runs)} runs")
+
+        # clear collected runs for this config
+        del self._runs[config_key]
         return str(path)
 
-    def _serialize_result(self, result: dict) -> dict:
+    # ── flush all remaining configs ────────────────────────────────────────
+    def flush_all(self) -> list[str]:
+        keys   = list(self._runs.keys())
+        paths  = []
+        for key in keys:
+            parts = key.split('x')
+            if len(parts) == 3:
+                w, h, d = map(int, parts)
+            else:
+                w, h = map(int, parts); d = 0
+            p = self.flush(w, h, d)
+            if p: paths.append(p)
+        return paths
+
+    # ── helpers ────────────────────────────────────────────────────────────
+    def _config_key(self, w, h, d=0) -> str:
+        return f"{w}x{h}x{d}" if d else f"{w}x{h}"
+
+    def _serialize(self, result: dict) -> dict:
         return {
-            "path":           [list(cell) for cell in result.get("path", [])],
-            "path_length":    result.get("path_length", 0),
-            "cost":           result.get("cost", 0),
+            "visited_order":  [list(c) for c in result.get("visited_order", [])],
+            "path":           [list(c) for c in result.get("path", [])],
+            "path_length":    result.get("path_length",    0),
+            "cost":           result.get("cost",           0),
             "nodes_expanded": result.get("cells_explored", 0),
-            "runtime":        round(result.get("runtime", 0.0), 4),
+            "runtime":        round(result.get("runtime",  0.0), 4),
         }

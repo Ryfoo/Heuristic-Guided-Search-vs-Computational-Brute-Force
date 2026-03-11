@@ -39,6 +39,8 @@ class BFS:
 
         self.max_memory_used : int = 0
 
+        self.visited_order : list[Cell] = []
+
         self.debug = debug
 
     def solve(self) -> dict:
@@ -53,7 +55,6 @@ class BFS:
         while not self._frontier_empty():
             self.max_memory_used = max(self.max_memory_used, len(self.frontier))
             current = self._pop_frontier()
-            self.cells_explored += 1
             if self._is_goal(current):
                 found = True
                 break
@@ -61,6 +62,7 @@ class BFS:
             for neighbor in self._expand_cell(current):
                 if not self._is_visited(neighbor):
                     self._mark_visited(neighbor)
+                    self.cells_explored += 1
                     self._add_to_frontier(neighbor)
                     self._parent_map(neighbor, current)
         summary['found'] = found
@@ -72,6 +74,7 @@ class BFS:
             summary['path'] = self.path
             summary['cost'] = self.cost
             summary['max_memory_used'] = self.max_memory_used
+            summary['visited_order'] = self.visited_order
         
         return summary
 
@@ -97,6 +100,7 @@ class BFS:
 
     def _mark_visited(self, cell : Cell) -> None:
         self.visited.add(cell)
+        self.visited_order.append(cell)
 
     def _is_visited(self, cell : Cell) -> bool:
         return cell in self.visited

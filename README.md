@@ -22,16 +22,16 @@ The experiment asks: if you give BFS enough threads, does raw computational powe
 Before committing to parallel implementation, we establish whether parallelism is even worth pursuing. This phase measures the node expansion ratio between BFS and its informed relatives, and estimates the break-even thread count — the number of threads BFS would need to match A* in wall-clock time. If that number is unreasonably large, the parallel approach is dropped.
 
 ### Phase 2 — Sequential Baseline
-A fair comparison requires clean sequential implementations of all algorithms under a uniform interface. Every algorithm receives the same maze, reports the same metrics, and is measured with the same timing mechanism. This phase establishes the ground truth before any parallelism is introduced.
+A fair comparison requires clean sequential implementations of all algorithms under a uniform interface.
 
 ### Phase 3 — Parallel BFS
 If Phase 1 justifies the effort, BFS is implemented in CUDA/C++ to exploit GPU parallelism. Each frontier level becomes a parallel work unit. The CUDA implementation is then benchmarked against the sequential informed algorithms across a range of maze configurations.
 
 ### Phase 4 — Adaptive Heuristics
-A* is given the ability to learn. Using lightweight regression on solved mazes, the heuristic is trained to better estimate distance-to-goal from local features. This introduces adaptability into the informed side of the comparison and raises a deeper question: how much experience does A* need before a learned heuristic outperforms a hand-crafted one — and can Parallel-BFS keep up as A* improves?
+A* is given the ability to learn. Using lightweight regression on solved mazes, the heuristic is trained to better estimate distance-to-goal from local features. This introduces adaptability into the informed side of the comparison and raises a deeper question: how much experience does A* need before a learned heuristic outperforms a hand-crafted one, and can Parallel-BFS keep up as A* improves?
 
 ### Phase 5 — Stress Testing and Extended Experiments
-Both approaches are tested under adversarial conditions: high obstacle density, non-square grids, off-corner start and goal positions, narrow corridors, and open rooms. The goal is to identify the structural conditions under which each approach thrives or collapses.
+Both approaches are tested under adversarial conditions: high obstacle density, non-square grids, off-corner start and goal positions, narrow corridors, and open rooms.
 
 ---
 
@@ -159,22 +159,17 @@ pip install -r requirements.txt
 python main.py
 ```
 
-<!-- Add C++ build instructions here when ready -->
 
 ---
 
 ## Key Observations So Far
 
-<!-- Fill in after Phase 1 and 2 are complete -->
 
 ---
 
 ## Further Questions Under Investigation
 
-- Does graph topology — open rooms vs narrow corridors — determine how much parallelism BFS can actually exploit?
-- What is the exchange rate between A*'s experience (training mazes) and BFS's thread count?
-- Does a learned heuristic become a liability when the environment changes?
-- At what point does a parallel swarm of uninformed agents begin to resemble intelligent behavior?
+
 
 ---
 
